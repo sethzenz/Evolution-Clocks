@@ -54,8 +54,11 @@ namespace EvolvingClocks {
 
   class Clock {
   private:
-    deque<Component> components_;
+    deque<Hand> hands_;
+    Backplate backplate_;
+    deque<Gear> gears_;
   public:
+    Clock();
     bool isOK();
   };
 

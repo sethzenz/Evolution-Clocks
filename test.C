@@ -9,19 +9,35 @@ int main() {
   Component x;
   Gear y;
   y.link(&y,gearBottom,gearTop);
-  cout << "One gear linked to self: isOK=" << y.isOK() << " hasLoop=" << y.hasLoop() << " hasLinkToBase()=" << y.hasLinkToBase() << endl;
+  cout << "One gear linked to self: isOK=" << y.isOK() << " hasLoop=" << y.hasLoop() << " hasLinkToBase=" << y.hasLinkToBase() << endl;
   Gear a,b;
   a.link(&b,gearBottom,gearTop);
-  cout << "Two gears linked sanely: isOK=" << a.isOK() << " hasLoop=" << a.hasLoop() << " hasLinkToBase()=" << a.hasLinkToBase() << endl;
+  cout << "Two gears linked sanely: isOK=" << a.isOK() << " hasLoop=" << a.hasLoop() << " hasLinkToBase=" << a.hasLinkToBase() << endl;
   Gear j,k,l;
   j.link(&k,gearBottom,gearTop);
   k.link(&l,gearBottom,gearTop);
   l.link(&j,gearBottom,gearTop);
-  cout << "Three gears in a vertical loop: isOK=" << j.isOK() << " hasLoop=" << j.hasLoop() << " hasLinkToBase()=" << j.hasLinkToBase() << endl;
+  cout << "Three gears in a vertical loop: isOK=" << j.isOK() << " hasLoop=" << j.hasLoop() << " hasLinkToBase=" << j.hasLinkToBase() << endl;
   Backplate bp;
   Gear g1,g2;
   g2.link(&g1,gearBottom,gearTop);
   g1.link(&bp,gearBottom,clockBase);
-  cout << "Two gears on backplate: isOK=" << g2.isOK() << " hasLoop=" << g2.hasLoop() << " hasLinkToBase()=" << g2.hasLinkToBase() << endl;
+  cout << "Two gears on backplate: isOK=" << g2.isOK() << " hasLoop=" << g2.hasLoop() << " hasLinkToBase=" << g2.hasLinkToBase() << endl;
+  cout << "Backplate itself: isOK=" << bp.isOK() << " hasLinkToBase=" << bp.hasLinkToBase() << endl;
+  Gear z;
+  z.link(&a,gearEdge,handEnd);
+  cout << "Mislabelled link: isOK=" << z.isOK() << " hasLoop=" << z.hasLoop() << " hasLinkToBase=" << z.hasLinkToBase() << endl;
+
+  Clock c;
+  cout << " Clock isOK=" << c.isOK() << endl;
+
+  /*
+  deque<Component*> fred;
+  fred.push_back(&bp);
+
+  Backplate* meh = dynamic_cast<Backplate*>((*(fred.begin())));
+  if (meh) cout << "dynamic cast ok" << endl;
+  */
+
   return 0;
 }

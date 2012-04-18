@@ -16,13 +16,16 @@ Connection::Connection(Component* other,interfaceType myInterface, interfaceType
 }
 
 bool Connection::isOK() {
-  if (other_ == NULL) return false;
+  if (!other_) return false;
+  if ((otherInterface_ == gearBottom || otherInterface_ == gearTop || otherInterface_ == gearEdge) && !dynamic_cast<Gear*>(other_))  return false;
+  if ((otherInterface_ == clockBase) && !dynamic_cast<Backplate*>(other_)) return false;
+  if ((otherInterface_ == handEnd) &&!dynamic_cast<Hand*>(other_)) return false;
   if (myInterface_ == clockBase && otherInterface_ == gearBottom) return true;
   if (myInterface_ == handEnd && (otherInterface_ == gearEdge || otherInterface_ == gearTop )) return true;
   if (myInterface_ == gearTop && (otherInterface_ == handEnd && otherInterface_ == gearBottom)) return true;
   if (myInterface_ == gearBottom && (otherInterface_ == gearTop || otherInterface_ == clockBase)) return true;
   if (myInterface_ == gearEdge && (otherInterface_ == gearEdge || otherInterface_ == handEnd)) return true;
-  if (myInterface_ != gearBottom && otherInterface_ == empty) return true;
+  //  if (myInterface_ != gearBottom && otherInterface_ == empty) return true; // removed; links to empty won't have a connection at all
   return false;
       
 }
@@ -97,12 +100,15 @@ bool Gear::isOK() {
   return (nGearBottom <= 1 && nGearTop <= 1);
 }
 
+Clock::Clock() {
+}
+
 bool Clock::isOK() {
-  unsigned int nbackplate = 0;
-  for (deque<Component>::iterator it =components_.begin() ; it != components_.end() ; it++) {
+  for (deque<Hand>::iterator it =hands_.begin() ; it != hands_.end() ; it++) {
     if (!it->isOK()) return false;
-    if (dynamic_cast<Backplate*>(&*it)) nbackplate++;
   }
-  if (nbackplate != 1) return false;
-  return true;
+  for (deque<Gear>::iterator it =gears_.begin() ; it != gears_.end() ; it++) {
+    if (!it->isOK()) return false;
+  }
+  return backplate_.isOK();
 }
