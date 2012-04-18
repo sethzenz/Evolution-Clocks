@@ -18,31 +18,34 @@ namespace EvolvingClocks {
     Connection();
     Connection(Component*,interfaceType, interfaceType);
     bool isOK();
+    interfaceType myInterface() {return myInterface_;}
+    interfaceType otherInterface() {return otherInterface_;}
+    Component* otherComponent() {return other_;}
   };
 
   class Component {
-  private:
+  protected:
     deque<Connection> connections_;
   public:
     Component(){};
     virtual ~Component(){}; //otherwise dynamic casts don't work
     bool isOK();
+    void link(Component*,interfaceType,interfaceType);
+    bool hasLinkToBase(deque<Component*>* sofar=NULL);
   };
 
   class Hand : public Component {
   private:
     float length_;
-    // 3 connections
   };
 
   class Gear : public Component {
   private:
     float radius_;
     int teeth_;
-    // center link
-    // multiple surface links
   public:
     bool isOK();
+    bool hasLoop();
   };
 
   class Backplate : public Component {

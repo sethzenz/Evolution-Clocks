@@ -1,4 +1,5 @@
 #include "clock.h"
+#include <iostream>
 
 using namespace EvolvingClocks;
 
@@ -33,8 +34,67 @@ bool Component::isOK() {
   return true;
 }
 
+void Component::link(Component* other,interfaceType myInterface, interfaceType otherInterface) {
+  Connection outConnection(other,myInterface,otherInterface);
+  Connection inConnection(this,otherInterface,myInterface);
+  connections_.push_back(outConnection);
+  other->connections_.push_back(inConnection);
+}
+
+bool Component::hasLinkToBase(deque<Component*> *sofar) {
+  if (sofar == NULL) {
+    sofar = new deque<Component*>;
+  }
+  for (deque<Component*>::iterator it = sofar->begin() ; it != sofar->end() ; it++) {
+    if (this == *it) return false; // Have gone in a loop, don't repeat ourselves.
+  }
+  sofar->push_back(this);
+  for (deque<Connection>::iterator it = connections_.begin() ; it != connections_.end() ; it++) {
+    if (it->otherInterface() == clockBase) return true;
+    if (it->otherInterface() != empty && it->otherComponent()->hasLinkToBase(sofar)) return true;
+  }
+  return false;
+}
+
+bool Gear::hasLoop() {
+  Gear *theGear = this;
+  bool hasbottom = true;
+  while (hasbottom) {
+    hasbottom = false;
+    deque<Connection> cList = theGear->connections_;
+    for (deque<Connection>::iterator it = cList.begin() ; it != cList.end() ; it++) {
+      if (it->myInterface() == gearBottom) {
+	hasbottom = true;
+	if (it->otherInterface() == gearTop) {
+	  theGear = dynamic_cast<Gear*>(it->otherComponent());
+	  if (!theGear) {
+	    cout << "Thought we should be casting to a gear, but failed.  Probably an error!  hasLoop() returns true" << endl;
+	    return true;
+	  }
+	  if (theGear == this) return true; // found a loop
+	  break;
+	}
+	if (it->otherInterface() == clockBase) {
+	  return false; // Found our way down to a clockBase -- no loop as long as everything is ok
+	}
+      }
+    }
+  }
+  return false;
+}
+
+
+
 bool Gear::isOK() {
-  // ?
+  unsigned int nGearBottom = 0;
+  unsigned int nGearTop = 0;
+  for (deque<Connection>::iterator it = connections_.begin() ; it != connections_.end() ; it++) {
+    if (!it->isOK()) return false;
+    if (it->myInterface() == gearTop) nGearTop++;
+    if (it->myInterface() == gearBottom) nGearBottom++;
+  }
+  if (hasLoop()) return false;
+  return (nGearBottom <= 1 && nGearTop <= 1);
 }
 
 bool Clock::isOK() {
@@ -42,9 +102,6 @@ bool Clock::isOK() {
   for (deque<Component>::iterator it =components_.begin() ; it != components_.end() ; it++) {
     if (!it->isOK()) return false;
     if (dynamic_cast<Backplate*>(&*it)) nbackplate++;
-    if (dynamic_cast<Gear*>(&*it)) {
-      // 
-    }
   }
   if (nbackplate != 1) return false;
   return true;
