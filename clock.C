@@ -1,7 +1,7 @@
 #include "clock.h"
 #include <iostream>
-#include <stdlib.h>
-#include <time.h>
+//#include <stdlib.h>
+//#include <time.h>
 #include <sstream>
 
 using namespace EvolvingClocks;
@@ -69,14 +69,22 @@ void Component::delink(Component* other) {
   connections_.erase(it);
 }
 
-bool Component::hasLinkToBase(deque<Component*> *sofar) {
-  if (sofar == NULL) {
-    sofar = new deque<Component*>;
+bool Component::hasLinkToBaseExcluding(idType notVia) {
+  deque<idType> sofar;
+  sofar.push_back(notVia);
+  return hasLinkToBase(sofar);
+}
+
+bool Component::hasLinkToBase() {
+  deque<idType> sofar;
+  return hasLinkToBase(sofar);
+}
+
+bool Component::hasLinkToBase(deque<idType> sofar) {
+  for (deque<idType>::iterator it = sofar.begin() ; it != sofar.end() ; it++) {
+    if (identifier() == *it) return false; // Have gone in a loop, don't repeat ourselves.
   }
-  for (deque<Component*>::iterator it = sofar->begin() ; it != sofar->end() ; it++) {
-    if (this == *it) return false; // Have gone in a loop, don't repeat ourselves.
-  }
-  sofar->push_back(this);
+  sofar.push_back(identifier());
   for (deque<Connection>::iterator it = connections_.begin() ; it != connections_.end() ; it++) {
     if (it->otherInterface() == clockBase) return true;
     if (it->otherInterface() != empty && it->otherComponent()->hasLinkToBase(sofar)) return true;
@@ -126,11 +134,30 @@ bool Gear::isOK(bool verbose) {
 }
 
 Clock::Clock(clockDesign design) {
-  if (design==basicPendulum) {
+  if (design==basicPendulum||design==brokenPendulum||design == doublePendulum) {
     hands_.push_back(Hand());
     gears_.push_back(Gear());
     hands_[0].link(&backplate_,handEnd,clockBase);
     hands_[0].link(&(gears_[0]),handEnd,gearTop);
+  }
+  if (design==brokenPendulum) gears_[0].link(&backplate_,gearBottom,clockBase);
+  if (design == doublePendulum) {
+    hands_.push_back(Hand());
+    gears_.push_back(Gear());
+    hands_[1].link(&(gears_[0]),handEnd,gearEdge);
+    hands_[1].link(&(gears_[1]),handEnd,gearTop);
+  }
+  resetIdentifiers();
+}
+
+void Clock::resetIdentifiers() {
+  backplate_.setIdentifier(0);
+  nextId_ = 1;
+  for (deque<Hand>::iterator it =hands_.begin() ; it != hands_.end() ; it++) {
+    it->setIdentifier(nextId_++);
+  }
+  for (deque<Gear>::iterator it =gears_.begin() ; it != gears_.end() ; it++) {
+    it->setIdentifier(nextId_++);
   }
 }
 
@@ -209,22 +236,38 @@ Hand::Hand() {
 
 string Gear::description() {
   stringstream s;
-  s << "gear t=" << teeth_;
+  s << "gear id=" << id_ << " t=" << teeth_;
   return s.str();
 }
 
 string Hand::description() {
   stringstream s;
-  s << "hand l=" << length_;
+  s << "hand id=" << id_ << " l=" << length_;
   return s.str();
 }
 
 deque<float> Clock::periods() {
   deque<float> result;
   for (deque<Hand>::iterator it = hands_.begin() ; it != hands_.end() ; it++) {
-    cout << it->description() << " " << it->nTargetsOfType(clockBase) << " " << it->nTargetsOfType(gearEdge) << " " << it->nTargetsOfType(gearTop)  << endl;
+    cout << it->description() << " " << it->nTargetsOfType(clockBase) << " " << it->nTargetsOfType(gearEdge) << " " << it->nTargetsOfType(gearTop) << " " << it->period() << endl;
     if ((it->nTargetsOfType(clockBase)==1 || it->nTargetsOfType(gearEdge)) && it->nTargetsOfType(gearTop) == 1) {
-      result.push_back(it->period());
+      // The gear connected via its gearTop is a candidate for a swinging weight.  
+      // But if we can get back to the base without going through the current hand, it's not swinging freely.
+      deque<Connection>::iterator cit;
+      for (cit = it->connections_.begin() ; cit != it->connections_.end() ; cit++ ) {
+	if (cit->otherInterface() == gearTop) break;
+      }
+      if (cit != it->connections_.end() && !cit->otherComponent()->hasLinkToBaseExcluding(it->identifier())) result.push_back(it->period());
+    }
+  }
+  for (deque<Gear>::iterator it = gears_.begin() ; it != gears_.end(); it++) {
+    deque<Connection>::iterator cit;
+    for (cit = it->connections_.begin() ; cit != it->connections_.end() ; cit++ ) {
+      if (cit->myInterface() == gearEdge && cit->otherInterface() == handEnd) {
+	Hand *theHand = dynamic_cast<Hand*>(cit->otherComponent());
+	if (!theHand) cout << "This dynamic cast should not fail" << endl;
+	result.push_back(theHand->period()*it->nTeeth()); // No check yet if gear is blocked, count all periods for a given hand
+      }
     }
   }
   return result;

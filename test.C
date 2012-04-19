@@ -35,11 +35,12 @@ int main() {
   cout << endl;
   cout << "Test clock..." << endl;
   
-  Clock c(basicPendulum);
+  Clock c(doublePendulum);
   cout << "Clock isOK=" << c.isOK() << endl;
   deque<float> p = c.periods();
+  cout << "Periods..." << endl;
   for (deque<float>::iterator it = p.begin() ; it != p.end() ; it++) {
-    cout << "Period " << *it <<endl;
+    cout << " " << *it <<endl;
   }
 
   cout << endl;
