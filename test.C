@@ -1,10 +1,14 @@
 #include <iostream>
 #include "clock.h"
+#include <stdlib.h>
+#include <time.h>
 
 using namespace std;
 using namespace EvolvingClocks;
 
 int main() {
+  srand(time(NULL)); rand(); rand();
+
   cout << "Hello" << endl;
   Component x;
   Gear y;
@@ -28,8 +32,40 @@ int main() {
   z.link(&a,gearEdge,handEnd);
   cout << "Mislabelled link: isOK=" << z.isOK() << " hasLoop=" << z.hasLoop() << " hasLinkToBase=" << z.hasLinkToBase() << endl;
 
-  Clock c;
-  cout << " Clock isOK=" << c.isOK() << endl;
+  cout << endl;
+  cout << "Test clock..." << endl;
+  
+  Clock c(basicPendulum);
+  cout << "Clock isOK=" << c.isOK() << endl;
+  deque<float> p = c.periods();
+  for (deque<float>::iterator it = p.begin() ; it != p.end() ; it++) {
+    cout << "Period " << *it <<endl;
+  }
+
+  cout << endl;
+
+  deque<interfaceType> free = g2.freeConnectionTypes();
+  for (deque<interfaceType>::iterator it = free.begin() ; it != free.end() ; it++) {
+    cout << "Available connection type " << *it << endl;
+  }
+
+  cout << "teeth: " << g2.nTeeth() << endl;
+
+  Hand h1,h2,h3;
+  cout << h1.period() << " " << h2.period() << " " << h3.period() << endl;
+
+
+  //  srand(time(NULL));
+  //  cout << time(NULL) << " " << (rand() % 100) << endl;
+
+  /*
+  printf ("First number: %d\n", rand() % 100);
+  srand ( time(NULL) );
+  printf ("First number after time: %d\n", rand() % 100);
+  printf ("Random number: %d\n", rand() % 100);
+  srand ( 1 );
+  printf ("Again the first number: %d\n", rand() %100);
+  */
 
   /*
   deque<Component*> fred;

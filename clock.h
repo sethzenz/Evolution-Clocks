@@ -1,11 +1,13 @@
 #include <string>
 #include <deque>
+#include <math.h>
 
 using namespace std;
 
 namespace EvolvingClocks {
 
-  enum interfaceType { empty, clockBase, handEnd,  gearEdge, gearTop, gearBottom };
+  enum interfaceType { empty = 0, clockBase, handEnd,  gearEdge, gearTop, gearBottom, INTERFACE_MAX };
+  enum clockDesign { plate = 0, basicPendulum, ratchetPendulum, ratchetPendulumWithHand };
 
   class Component;
 
@@ -17,7 +19,7 @@ namespace EvolvingClocks {
   public:
     Connection();
     Connection(Component*,interfaceType, interfaceType);
-    bool isOK();
+    bool isOK(bool verbose=false);
     interfaceType myInterface() {return myInterface_;}
     interfaceType otherInterface() {return otherInterface_;}
     Component* otherComponent() {return other_;}
@@ -29,27 +31,52 @@ namespace EvolvingClocks {
   public:
     Component(){};
     virtual ~Component(){}; //otherwise dynamic casts don't work
-    bool isOK();
+    bool isOK(bool verbose=false);
     void link(Component*,interfaceType,interfaceType);
+    void delink(Component*);
     bool hasLinkToBase(deque<Component*>* sofar=NULL);
+    virtual unsigned int maxConnectionsOfType(interfaceType iType){return 0;}
+    unsigned int nConnectionsOfType(interfaceType);
+    unsigned int nTargetsOfType(interfaceType);
+    unsigned int freeConnectionsOfType(interfaceType);
+    deque<interfaceType> freeConnectionTypes();
+    string description(){ return ""; }
   };
 
   class Hand : public Component {
   private:
     float length_;
+  public:
+    unsigned int maxConnectionsOfType(interfaceType iType);
+    ~Hand(){};
+    Hand(float l) {  length_ = l; }
+    Hand();
+    float period() { return 2*3.14159*sqrt(length_/9.8); } 
+    string description();
   };
 
   class Gear : public Component {
   private:
-    float radius_;
+    //    float radius_;
     int teeth_;
   public:
-    bool isOK();
+    ~Gear(){};
+    bool isOK(bool verbose=false);
     bool hasLoop();
+    unsigned int maxConnectionsOfType(interfaceType iType);
+    //    Gear(float r, int t) { radius_ = r; teeth_ = t; }
+    Gear(int t) { teeth_ = t; }
+    Gear();
+    int nTeeth() { return teeth_; }
+    string description();
   };
 
   class Backplate : public Component {
-    // ?
+  public:
+    unsigned int maxConnectionsOfType(interfaceType iType);
+    ~Backplate(){};
+    Backplate(){};
+    string description(){ return "backplate"; }
   };
 
   class Clock {
@@ -58,8 +85,10 @@ namespace EvolvingClocks {
     Backplate backplate_;
     deque<Gear> gears_;
   public:
-    Clock();
-    bool isOK();
+    Clock(){};
+    Clock(clockDesign);
+    bool isOK(bool verbose=false);
+    deque<float> periods();
   };
 
 }
