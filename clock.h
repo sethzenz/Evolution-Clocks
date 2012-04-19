@@ -3,14 +3,17 @@
 #include <math.h>
 #include <stdlib.h>
 
+#define TOLERANCE 0.01
+
 using namespace std;
 
 typedef int idType;
 
+
 namespace EvolvingClocks {
 
   enum interfaceType { empty = 0, clockBase, handEnd,  gearEdge, gearTop, gearBottom, INTERFACE_MAX };
-  enum clockDesign { plate = 0, basicPendulum, brokenPendulum, doublePendulum, ratchetPendulum, ratchetPendulumWithHand };
+  enum clockDesign { plate = 0, basicPendulum, brokenPendulum, doublePendulum, ratchetPendulum, ratchetPendulumThreeGears, ratchetPendulumBroken, ratchetPendulumWithHand };
 
   class Component;
 
@@ -48,6 +51,8 @@ namespace EvolvingClocks {
     unsigned int nTargetsOfType(interfaceType);
     unsigned int freeConnectionsOfType(interfaceType);
     deque<interfaceType> freeConnectionTypes();
+    interfaceType randomFreeConnectionType();
+    bool hasFreeConnections();
     string description(){ return ""; }
     idType identifier(){return id_;}
     void setIdentifier(idType id){id_=id;}
@@ -96,11 +101,15 @@ namespace EvolvingClocks {
     deque<Gear> gears_;
     idType nextId_;
   public:
-    Clock(){};
+    Clock(){ resetIdentifiers(); };
     Clock(clockDesign);
+    Clock(int);
     bool isOK(bool verbose=false);
     deque<float> periods();
     void resetIdentifiers();
+    int nPieces(){return (1+gears_.size()+hands_.size());}
+    deque<Component*> freeComponents();
+    Component* randomFreeComponent();
   };
 
 }

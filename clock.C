@@ -3,6 +3,7 @@
 //#include <stdlib.h>
 //#include <time.h>
 #include <sstream>
+#include <map>
 
 using namespace EvolvingClocks;
 
@@ -18,19 +19,21 @@ Connection::Connection(Component* other,interfaceType myInterface, interfaceType
   otherInterface_ = otherInterface;
 }
 
+bool interfaceAllowed(interfaceType a,interfaceType b) {
+  if (a == clockBase && (b == gearBottom || b == handEnd)) return true;
+  if (a == handEnd && (b == gearEdge || b == gearTop || b == clockBase )) return true;
+  if (a == gearTop && (b == handEnd || b == gearBottom)) return true;
+  if (a == gearBottom && (b == gearTop || b == clockBase)) return true;
+  if (a == gearEdge && (b == gearEdge || b == handEnd)) return true;
+  return false;
+}
+
 bool Connection::isOK(bool verbose) {
   if (!other_) return false;
   if ((otherInterface_ == gearBottom || otherInterface_ == gearTop || otherInterface_ == gearEdge) && !dynamic_cast<Gear*>(other_))  return false;
   if ((otherInterface_ == clockBase) && !dynamic_cast<Backplate*>(other_)) return false;
   if ((otherInterface_ == handEnd) &&!dynamic_cast<Hand*>(other_)) return false;
-  if (myInterface_ == clockBase && (otherInterface_ == gearBottom || otherInterface_ == handEnd)) return true;
-  if (myInterface_ == handEnd && (otherInterface_ == gearEdge || otherInterface_ == gearTop || otherInterface_ == clockBase )) return true;
-  if (myInterface_ == gearTop && (otherInterface_ == handEnd || otherInterface_ == gearBottom)) return true;
-  if (myInterface_ == gearBottom && (otherInterface_ == gearTop || otherInterface_ == clockBase)) return true;
-  if (myInterface_ == gearEdge && (otherInterface_ == gearEdge || otherInterface_ == handEnd)) return true;
-  //  if (myInterface_ != gearBottom && otherInterface_ == empty) return true; // removed; links to empty won't have a connection at all
-  return false;
-      
+  return interfaceAllowed(myInterface_,otherInterface_);
 }
 
 bool Component::isOK(bool verbose) {
@@ -133,6 +136,52 @@ bool Gear::isOK(bool verbose) {
   return true;
 }
 
+deque<Component*> Clock::freeComponents() {
+  deque<Component*> answer;
+  answer.push_back(&backplate_);
+  for (deque<Hand>::iterator it = hands_.begin() ; it != hands_.end() ; it++) {
+    if (it->hasFreeConnections()) {
+      answer.push_back(&*it);
+    }
+  }
+  for (deque<Gear>::iterator it = gears_.begin() ; it != gears_.end() ; it++) {
+    if (it->hasFreeConnections() ) {
+      answer.push_back(&*it);
+    }
+  }
+  return answer;
+}
+
+Component* Clock::randomFreeComponent() {
+  deque<Component*> theList = freeComponents();
+  return theList[(rand()%theList.size())];
+}
+
+Clock::Clock(int nRandom) {
+  for (int i = 0 ; i < nRandom ; i++) {
+    bool isHand = (rand() < (0.5*RAND_MAX));
+    Component *newThing;
+    if (isHand) {
+      hands_.push_back(Hand());
+      newThing = &(hands_[hands_.size()-1]);
+    } else {
+      gears_.push_back(Gear());
+      newThing = &(gears_[gears_.size()-1]);
+    }
+    Component *addTo = randomFreeComponent();
+    interfaceType fromInterface = addTo->randomFreeConnectionType();
+    interfaceType toInterface = newThing->randomFreeConnectionType();
+    if (!interfaceAllowed(fromInterface,toInterface)) {
+      cout << " Vetoing from=" << fromInterface << " to=" << toInterface << endl;                                                             
+      i--;
+      break;
+    }
+    addTo->link(newThing,fromInterface,toInterface);
+    cout << " Added item " << i << " and isOK=" << isOK() << " from=" << fromInterface << " to=" << toInterface << endl;
+  }
+  resetIdentifiers();
+}
+
 Clock::Clock(clockDesign design) {
   if (design==basicPendulum||design==brokenPendulum||design == doublePendulum) {
     hands_.push_back(Hand());
@@ -146,6 +195,32 @@ Clock::Clock(clockDesign design) {
     gears_.push_back(Gear());
     hands_[1].link(&(gears_[0]),handEnd,gearEdge);
     hands_[1].link(&(gears_[1]),handEnd,gearTop);
+  }
+  if (design == ratchetPendulum || design == ratchetPendulumThreeGears || design == ratchetPendulumBroken || design == ratchetPendulumWithHand) {
+    gears_.push_back(Gear());
+    hands_.push_back(Hand());
+    gears_.push_back(Gear());
+    gears_[0].link(&backplate_,gearBottom,clockBase);
+    hands_[0].link(&gears_[0],handEnd,gearEdge);
+    hands_[0].link(&gears_[1],handEnd,gearTop);
+  }
+  if (design == ratchetPendulumThreeGears || design == ratchetPendulumBroken) {
+    gears_.push_back(Gear());
+    gears_.push_back(Gear());
+    gears_[2].link(&backplate_,gearBottom,clockBase);
+    gears_[2].link(&gears_[0],gearEdge,gearEdge);
+    gears_[3].link(&backplate_,gearBottom,clockBase);
+    gears_[3].link(&gears_[2],gearEdge,gearEdge);
+  }
+  if (design == ratchetPendulumBroken) {
+    hands_.push_back(Hand());
+    gears_.push_back(Gear());
+    hands_[1].link(&gears_[3],handEnd,gearEdge);
+    hands_[1].link(&gears_[4],handEnd,gearTop);
+  }
+  if (design == ratchetPendulumWithHand) {
+    hands_.push_back(Hand());
+    hands_[1].link(&(gears_[0]),handEnd,gearTop);
   }
   resetIdentifiers();
 }
@@ -199,7 +274,13 @@ unsigned int Component::freeConnectionsOfType(interfaceType iType) {
     return 0;
   }
 }
-  
+
+bool Component::hasFreeConnections(){
+  for (int i = empty ; i < INTERFACE_MAX ; i++) {
+    if (freeConnectionsOfType(interfaceType(i)) > 0) return true;
+  }
+  return false;
+}
 
 deque<interfaceType> Component::freeConnectionTypes() {
   deque<interfaceType> answer;
@@ -207,6 +288,11 @@ deque<interfaceType> Component::freeConnectionTypes() {
     if (freeConnectionsOfType(interfaceType(i)) > 0) answer.push_back(interfaceType(i));
   }
   return answer;
+}
+
+interfaceType Component::randomFreeConnectionType() {
+  deque<interfaceType> theList = freeConnectionTypes();
+  return theList[rand()%theList.size()];
 }
 
 unsigned int Hand::maxConnectionsOfType(interfaceType iType) {
@@ -260,15 +346,66 @@ deque<float> Clock::periods() {
       if (cit != it->connections_.end() && !cit->otherComponent()->hasLinkToBaseExcluding(it->identifier())) result.push_back(it->period());
     }
   }
+  map<idType,float> gearNumbers;
   for (deque<Gear>::iterator it = gears_.begin() ; it != gears_.end(); it++) {
-    deque<Connection>::iterator cit;
-    for (cit = it->connections_.begin() ; cit != it->connections_.end() ; cit++ ) {
-      if (cit->myInterface() == gearEdge && cit->otherInterface() == handEnd) {
-	Hand *theHand = dynamic_cast<Hand*>(cit->otherComponent());
-	if (!theHand) cout << "This dynamic cast should not fail" << endl;
-	result.push_back(theHand->period()*it->nTeeth()); // No check yet if gear is blocked, count all periods for a given hand
+    gearNumbers[it->identifier()] = -99.;
+  }
+  bool changed = true;
+  while(changed) {
+    changed = false;
+    for (deque<Gear>::iterator it = gears_.begin() ; it != gears_.end(); it++) {
+      cout << it->identifier() << "," << it->nTeeth() << "," << gearNumbers[it->identifier()] << "  ";
+    }
+    cout<< endl;
+    for (deque<Gear>::iterator it = gears_.begin() ; it != gears_.end(); it++) {
+      deque<Connection>::iterator cit;
+      for (cit = it->connections_.begin() ; cit != it->connections_.end() ; cit++ ) {
+	if (cit->myInterface() == gearEdge && cit->otherInterface() == handEnd) {
+	  Hand *theHand = dynamic_cast<Hand*>(cit->otherComponent());
+	  if (!theHand) cout << "This dynamic cast should not fail" << endl;
+	  float newVal = theHand->period()*it->nTeeth();
+	  if (gearNumbers[it->identifier()] < 0.) {
+	    gearNumbers[it->identifier()] = newVal;
+	    changed = true;
+	  }
+	  if (gearNumbers[it->identifier()] > 0. && newVal != gearNumbers[it->identifier()]) {
+	    gearNumbers[it->identifier()] = 0.;
+	    changed = true;
+	  }
+	}
+	if ( (cit->myInterface() == gearEdge && cit->otherInterface() == gearEdge) 
+	     || (cit->myInterface() == gearTop && cit->otherInterface() == gearBottom)
+             || (cit->myInterface() == gearBottom && cit->otherInterface() == gearTop) ) {
+	  Gear *otherGear = dynamic_cast<Gear*>(cit->otherComponent());
+	  if (!otherGear) cout << "This dynamic cast should not fail" << endl;
+	  float newVal = gearNumbers[otherGear->identifier()];
+	  if (cit->myInterface() == gearEdge) newVal *= (float(it->nTeeth())/float(otherGear->nTeeth()));
+	  //	  cout << "Possibly changing " << gearNumbers[it->identifier()]  << " to " << newVal;
+	  if (gearNumbers[it->identifier()] < 0. && newVal > 0.) {
+            gearNumbers[it->identifier()] = newVal;
+            changed = true;
+	    //	    cout << " ... done.";
+	  }
+	  if (gearNumbers[it->identifier()] > 0. && newVal > 0. && fabs((newVal-gearNumbers[it->identifier()])/newVal) > TOLERANCE) {
+	    gearNumbers[it->identifier()] = 0.;
+	    changed = true;
+	    //	    cout << " ... conflict, set to 0.";
+	  }
+	  if (newVal == 0. && gearNumbers[it->identifier()] != 0.) {
+            gearNumbers[it->identifier()] = 0.;
+	    changed = true;
+	  }
+	  //	  cout << endl;
+	}
       }
     }
   }
+  for (deque<Gear>::iterator it = gears_.begin() ; it != gears_.end(); it++) {
+    cout << it->identifier() << "," << it->nTeeth() << "," << gearNumbers[it->identifier()] << "  ";
+    if (gearNumbers[it->identifier()] > 0.) {
+      result.push_back(gearNumbers[it->identifier()]);
+    }
+  }
+  cout << endl;
   return result;
 }

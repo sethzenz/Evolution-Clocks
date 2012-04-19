@@ -2,6 +2,7 @@
 #include "clock.h"
 #include <stdlib.h>
 #include <time.h>
+#include <map>
 
 using namespace std;
 using namespace EvolvingClocks;
@@ -35,7 +36,8 @@ int main() {
   cout << endl;
   cout << "Test clock..." << endl;
   
-  Clock c(doublePendulum);
+  //  Clock c(ratchetPendulumWithHand);
+  Clock c(2);
   cout << "Clock isOK=" << c.isOK() << endl;
   deque<float> p = c.periods();
   cout << "Periods..." << endl;
@@ -55,6 +57,19 @@ int main() {
   Hand h1,h2,h3;
   cout << h1.period() << " " << h2.period() << " " << h3.period() << endl;
 
+  map<int,int> periodHist;
+  for (int i = 0 ; i < 10 ; i++) periodHist[i] = 0;
+  
+  for (int i = 0 ; i < 10000 ; i ++) {
+    Clock c(10);
+    periodHist[c.periods().size()] += 1;
+  }
+
+  cout << endl << endl;
+  for (int i = 0 ; i < 10 ; i++) {
+    cout << i << " periods: " << periodHist[i] << endl;
+  }
+  
 
   //  srand(time(NULL));
   //  cout << time(NULL) << " " << (rand() % 100) << endl;
