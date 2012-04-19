@@ -14,6 +14,17 @@ namespace EvolvingClocks {
 
   enum interfaceType { empty = 0, clockBase, handEnd,  gearEdge, gearTop, gearBottom, INTERFACE_MAX };
   enum clockDesign { plate = 0, basicPendulum, brokenPendulum, doublePendulum, ratchetPendulum, ratchetPendulumThreeGears, ratchetPendulumBroken, ratchetPendulumWithHand };
+  enum periodType { pendulum, plainGear, gearWithHand };
+
+  class PeriodInfo {
+  private:
+    float period_;
+    periodType type_;
+  public:
+    PeriodInfo(float p, periodType t){ period_ = p; type_ = t; }
+    float period(){ return period_; }
+    periodType type(){return type_; }
+  };
 
   class Component;
 
@@ -105,11 +116,12 @@ namespace EvolvingClocks {
     Clock(clockDesign);
     Clock(int);
     bool isOK(bool verbose=false);
-    deque<float> periods();
+    deque<PeriodInfo> periods(bool verbose=false);
     void resetIdentifiers();
     int nPieces(){return (1+gears_.size()+hands_.size());}
     deque<Component*> freeComponents();
     Component* randomFreeComponent();
+    void display ();
   };
 
 }

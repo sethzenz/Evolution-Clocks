@@ -160,6 +160,21 @@ Component* Clock::randomFreeComponent() {
 Clock::Clock(int nRandom) {
   for (int i = 0 ; i < nRandom ; i++) {
     bool isHand = (rand() < (0.5*RAND_MAX));
+    Component *addTo = randomFreeComponent();
+    interfaceType fromInterface = addTo->randomFreeConnectionType();
+    interfaceType toInterface;
+    if (isHand) {
+      Hand dummyHand;
+      toInterface = dummyHand.randomFreeConnectionType();
+    } else {
+      Gear dummyGear;
+      toInterface = dummyGear.randomFreeConnectionType();
+    }
+    if (!interfaceAllowed(fromInterface,toInterface)) {
+      //      cout << " Vetoing from=" << fromInterface << " to=" << toInterface << endl;                                                             
+      i--;
+      continue;
+    }
     Component *newThing;
     if (isHand) {
       hands_.push_back(Hand());
@@ -168,16 +183,8 @@ Clock::Clock(int nRandom) {
       gears_.push_back(Gear());
       newThing = &(gears_[gears_.size()-1]);
     }
-    Component *addTo = randomFreeComponent();
-    interfaceType fromInterface = addTo->randomFreeConnectionType();
-    interfaceType toInterface = newThing->randomFreeConnectionType();
-    if (!interfaceAllowed(fromInterface,toInterface)) {
-      cout << " Vetoing from=" << fromInterface << " to=" << toInterface << endl;                                                             
-      i--;
-      break;
-    }
     addTo->link(newThing,fromInterface,toInterface);
-    cout << " Added item " << i << " and isOK=" << isOK() << " from=" << fromInterface << " to=" << toInterface << endl;
+    //    cout << " Added item " << i << " and isOK=" << isOK() << " from=" << fromInterface << " to=" << toInterface << endl;
   }
   resetIdentifiers();
 }
@@ -323,19 +330,29 @@ Hand::Hand() {
 string Gear::description() {
   stringstream s;
   s << "gear id=" << id_ << " t=" << teeth_;
+  s << " con:";
+  for (deque<Connection>::iterator it = connections_.begin() ; it != connections_.end() ; it++) {
+    s << " " << it->otherComponent()->identifier() << " (" << it->myInterface() << "->" << it->otherInterface() <<")" ;
+  }
   return s.str();
 }
 
 string Hand::description() {
   stringstream s;
   s << "hand id=" << id_ << " l=" << length_;
+  s << " con:";
+  for (deque<Connection>::iterator it = connections_.begin() ; it != connections_.end() ; it++) {
+    s << " " << it->otherComponent()->identifier() << " (" << it->myInterface() << "->" << it->otherInterface() <<")" ;
+  }
   return s.str();
 }
 
-deque<float> Clock::periods() {
-  deque<float> result;
+deque<PeriodInfo> Clock::periods(bool verbose) {
+
+  deque<PeriodInfo> result;
+
+  // Find periods for the hands
   for (deque<Hand>::iterator it = hands_.begin() ; it != hands_.end() ; it++) {
-    cout << it->description() << " " << it->nTargetsOfType(clockBase) << " " << it->nTargetsOfType(gearEdge) << " " << it->nTargetsOfType(gearTop) << " " << it->period() << endl;
     if ((it->nTargetsOfType(clockBase)==1 || it->nTargetsOfType(gearEdge)) && it->nTargetsOfType(gearTop) == 1) {
       // The gear connected via its gearTop is a candidate for a swinging weight.  
       // But if we can get back to the base without going through the current hand, it's not swinging freely.
@@ -343,7 +360,9 @@ deque<float> Clock::periods() {
       for (cit = it->connections_.begin() ; cit != it->connections_.end() ; cit++ ) {
 	if (cit->otherInterface() == gearTop) break;
       }
-      if (cit != it->connections_.end() && !cit->otherComponent()->hasLinkToBaseExcluding(it->identifier())) result.push_back(it->period());
+      if (cit != it->connections_.end() && !cit->otherComponent()->hasLinkToBaseExcluding(it->identifier())) { 
+	result.push_back(PeriodInfo(it->period(),pendulum));
+      }
     }
   }
   map<idType,float> gearNumbers;
@@ -354,58 +373,102 @@ deque<float> Clock::periods() {
   while(changed) {
     changed = false;
     for (deque<Gear>::iterator it = gears_.begin() ; it != gears_.end(); it++) {
-      cout << it->identifier() << "," << it->nTeeth() << "," << gearNumbers[it->identifier()] << "  ";
+      if (verbose) cout << it->identifier() << "," << it->nTeeth() << "," << gearNumbers[it->identifier()] << "  ";
     }
-    cout<< endl;
+    if (verbose) cout<< endl;
     for (deque<Gear>::iterator it = gears_.begin() ; it != gears_.end(); it++) {
       deque<Connection>::iterator cit;
       for (cit = it->connections_.begin() ; cit != it->connections_.end() ; cit++ ) {
+	float newVal = -99.;
+
+	// If my edge is connected to a hand (a "ratchet")
 	if (cit->myInterface() == gearEdge && cit->otherInterface() == handEnd) {
 	  Hand *theHand = dynamic_cast<Hand*>(cit->otherComponent());
-	  if (!theHand) cout << "This dynamic cast should not fail" << endl;
-	  float newVal = theHand->period()*it->nTeeth();
-	  if (gearNumbers[it->identifier()] < 0.) {
-	    gearNumbers[it->identifier()] = newVal;
-	    changed = true;
+	  if (!theHand) cout << "This (a) dynamic cast should not fail" << endl;
+	  
+	  // If it's connected to me and a weight...
+	  if ((theHand->nTargetsOfType(clockBase)==1 || theHand->nTargetsOfType(gearEdge)) && theHand->nTargetsOfType(gearTop) == 1) {
+	    if (verbose) cout << " me and weight " << endl;
+	    deque<Connection>::iterator cit2;
+	    for (cit2 = theHand->connections_.begin() ; cit2 != theHand->connections_.end() ; cit2++ ) {
+	      if (cit2->otherInterface() == gearTop) break;
+	    }
+	    if (cit2 != it->connections_.end() && !cit2->otherComponent()->hasLinkToBaseExcluding(it->identifier())) {
+	      newVal = theHand->period()*it->nTeeth();
+	      if (verbose) cout << " change ok " << endl;
+	    }
 	  }
-	  if (gearNumbers[it->identifier()] > 0. && newVal != gearNumbers[it->identifier()]) {
-	    gearNumbers[it->identifier()] = 0.;
-	    changed = true;
+
+	  // If it's connected to me and the edge of another gear, turn each other
+	  if (theHand->nTargetsOfType(gearEdge) == 2) {
+            for (deque<Connection>::iterator cit2 = theHand->connections_.begin() ; cit2 != theHand->connections_.end() ; cit2++ ) {
+	      if (cit2->otherComponent()->identifier() != it->identifier()) {
+		Gear *otherGear = dynamic_cast<Gear*>(cit2->otherComponent());
+		if (!otherGear) cout << "This (b) dynamic cast should not fail" << endl;
+		newVal = gearNumbers[otherGear->identifier()]*(float(it->nTeeth())/float(otherGear->nTeeth()));
+	      }
+	    }
 	  }
 	}
+
+	// If I'm connected to another gear, we turn each other
 	if ( (cit->myInterface() == gearEdge && cit->otherInterface() == gearEdge) 
 	     || (cit->myInterface() == gearTop && cit->otherInterface() == gearBottom)
              || (cit->myInterface() == gearBottom && cit->otherInterface() == gearTop) ) {
 	  Gear *otherGear = dynamic_cast<Gear*>(cit->otherComponent());
-	  if (!otherGear) cout << "This dynamic cast should not fail" << endl;
-	  float newVal = gearNumbers[otherGear->identifier()];
-	  if (cit->myInterface() == gearEdge) newVal *= (float(it->nTeeth())/float(otherGear->nTeeth()));
-	  //	  cout << "Possibly changing " << gearNumbers[it->identifier()]  << " to " << newVal;
-	  if (gearNumbers[it->identifier()] < 0. && newVal > 0.) {
-            gearNumbers[it->identifier()] = newVal;
-            changed = true;
-	    //	    cout << " ... done.";
-	  }
-	  if (gearNumbers[it->identifier()] > 0. && newVal > 0. && fabs((newVal-gearNumbers[it->identifier()])/newVal) > TOLERANCE) {
-	    gearNumbers[it->identifier()] = 0.;
-	    changed = true;
-	    //	    cout << " ... conflict, set to 0.";
-	  }
-	  if (newVal == 0. && gearNumbers[it->identifier()] != 0.) {
-            gearNumbers[it->identifier()] = 0.;
-	    changed = true;
-	  }
-	  //	  cout << endl;
+	  if (!otherGear) cout << "This (c) dynamic cast should not fail" << endl;
+	  newVal = gearNumbers[otherGear->identifier()]; // Top-to-bottom, same period
+	  if (cit->myInterface() == gearEdge) newVal *= (float(it->nTeeth())/float(otherGear->nTeeth())); // Edges, different periods
 	}
+
+	// Now we update my value, setting to newVal if it has a positive value, or to 0 if there's a conflict
+	if (verbose) cout << "Possibly changing " << gearNumbers[it->identifier()]  << " to " << newVal;
+	if (gearNumbers[it->identifier()] < 0. && newVal > 0.) {
+	  gearNumbers[it->identifier()] = newVal;
+	  changed = true;
+	  if (verbose) cout << " ... done.";
+	}
+	if (gearNumbers[it->identifier()] > 0. && newVal > 0. && fabs((newVal-gearNumbers[it->identifier()])/newVal) > TOLERANCE) {
+	  gearNumbers[it->identifier()] = 0.;
+	    changed = true;
+	    if (verbose) cout << " ... conflict, set to 0.";
+	}
+	if (newVal == 0. && gearNumbers[it->identifier()] != 0.) {
+	  gearNumbers[it->identifier()] = 0.;
+	  changed = true;
+	}
+	if (verbose) cout << endl;
       }
     }
   }
   for (deque<Gear>::iterator it = gears_.begin() ; it != gears_.end(); it++) {
-    cout << it->identifier() << "," << it->nTeeth() << "," << gearNumbers[it->identifier()] << "  ";
+    periodType theType = plainGear;
+    if (verbose) cout << it->identifier() << "," << it->nTeeth() << "," << gearNumbers[it->identifier()] << "  ";
+    deque<Connection>::iterator cit;
+    for (cit = it->connections_.begin() ; cit != it->connections_.end() ; cit++) {
+      //      cout << cit->otherComponent()->freeConnectionsOfType(handEnd) << " " << cit->myInterface() << " " << cit->otherInterface() << endl;
+      if ((cit->myInterface() == gearTop) && (cit->otherInterface() == handEnd) && (cit->otherComponent()->freeConnectionsOfType(handEnd)==1)) {
+	theType = gearWithHand;
+	//	cout << "Have gearWithHand: " << gearNumbers[it->identifier()] << endl;
+      }
+    }
     if (gearNumbers[it->identifier()] > 0.) {
-      result.push_back(gearNumbers[it->identifier()]);
+      result.push_back(PeriodInfo(gearNumbers[it->identifier()],theType));
     }
   }
-  cout << endl;
+   if (verbose) cout << endl;
   return result;
+}
+
+void Clock::display() {
+  cout << "Displaying clock with " <<  nPieces() << " pieces" << endl;
+  cout << "Periods: ";
+  deque<PeriodInfo> p = periods();
+  for (deque<PeriodInfo>::iterator it = p.begin() ; it != p.end() ; it++) {
+    cout << it->period() << " (" << it->type() << "), ";
+  }
+  cout << endl;
+  cout << backplate_.description() << endl;
+  for (deque<Hand>::iterator it = hands_.begin() ; it != hands_.end() ; it++) cout << it->description() << endl;
+  for (deque<Gear>::iterator it = gears_.begin() ; it != gears_.end() ; it++) cout << it->description() << endl;
 }

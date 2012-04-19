@@ -39,11 +39,6 @@ int main() {
   //  Clock c(ratchetPendulumWithHand);
   Clock c(2);
   cout << "Clock isOK=" << c.isOK() << endl;
-  deque<float> p = c.periods();
-  cout << "Periods..." << endl;
-  for (deque<float>::iterator it = p.begin() ; it != p.end() ; it++) {
-    cout << " " << *it <<endl;
-  }
 
   cout << endl;
 
@@ -59,17 +54,54 @@ int main() {
 
   map<int,int> periodHist;
   for (int i = 0 ; i < 10 ; i++) periodHist[i] = 0;
+
+  map<int,int> minutePeriodHist;
+  for (int i = 0 ; i < 10 ; i++) minutePeriodHist[i] = 0;
+
+  int N = 6;
+  int min = 10.;
+  int periodSoFar = 0;
   
   for (int i = 0 ; i < 10000 ; i ++) {
-    Clock c(10);
-    periodHist[c.periods().size()] += 1;
+    Clock c(N);
+    deque<PeriodInfo> p = c.periods();
+    periodHist[p.size()] += 1;
+    bool hasHand = false;
+    int countLong = 0;
+    for (deque<PeriodInfo>::iterator it = p.begin() ; it != p.end() ; it++) {
+      if (it->period() > float(min)) countLong++;
+      if (it->type() == gearWithHand) hasHand = true;
+    }
+    minutePeriodHist[countLong] += 1;
+    if (countLong >= 1) {
+      cout << "long period clock!" << endl << endl;
+      c.display();
+      cout << endl;
+    }
+    if (p.size() > periodSoFar) {
+      cout << "Record number of period clock!" << endl << endl;
+      c.display();
+      cout << endl;
+      periodSoFar = p.size();
+    }
+    if (hasHand) {
+      cout << "clock with hand!" << endl << endl;
+      c.display();
+      cout << endl;
+    }
   }
 
   cout << endl << endl;
+  cout << "N=" << N << endl;
   for (int i = 0 ; i < 10 ; i++) {
     cout << i << " periods: " << periodHist[i] << endl;
   }
-  
+  cout << endl << endl;
+  cout << "N=" << N << endl;
+  for (int i = 0 ; i < 10 ; i++) {
+    cout << i << " periods of " << min << "+ secs: " << minutePeriodHist[i] << endl;
+  }
+
 
   //  srand(time(NULL));
   //  cout << time(NULL) << " " << (rand() % 100) << endl;
