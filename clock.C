@@ -472,3 +472,43 @@ void Clock::display() {
   for (deque<Hand>::iterator it = hands_.begin() ; it != hands_.end() ; it++) cout << it->description() << endl;
   for (deque<Gear>::iterator it = gears_.begin() ; it != gears_.end() ; it++) cout << it->description() << endl;
 }
+
+float Frequentist::eval(Clock* c) {
+  float score = 0.;
+  deque<PeriodInfo> p = c->periods();
+  for (deque<PeriodInfo>::iterator it = p.begin() ; it != p.end() ; it++) {
+    score += it->period()/(it->period() + fabs(it->period()-desired_));
+  }
+  score /= p.size();
+  return score;
+}
+
+float Traditionalist::eval(Clock *c) {
+  deque<PeriodInfo> p = c->periods();
+  float pendScore = 0.;
+  float hourHandScore = 0.;
+  float secondHandScore = 0.;
+  float minuteHandScore = 0.;
+  int nPend = 0;
+  int nProperHands = 0;
+  for (deque<PeriodInfo>::iterator it = p.begin() ; it != p.end() ; it++) {
+    if (it->type() == pendulum) {
+      nPend++;
+      float newPendScore = it->period()/(it->period() + fabs(it->period()-1.));
+      if (newPendScore > pendScore) pendScore = newPendScore;
+    }
+    if (it->type() == gearWithHand) {
+      nProperHands++;
+      float newHourHandScore = it->period()/(it->period() + fabs(it->period()-86400.));
+      if (newHourHandScore > hourHandScore) hourHandScore = newHourHandScore;
+      float newMinuteHandScore = it->period()/(it->period() + fabs(it->period()-3600.));
+      if (newMinuteHandScore > minuteHandScore) minuteHandScore = newMinuteHandScore;
+      float newSecondHandScore = it->period()/(it->period() + fabs(it->period()-60.));
+      if (newSecondHandScore > secondHandScore) secondHandScore = newSecondHandScore;
+    }
+  }
+  float score = pendScore + minuteHandScore + secondHandScore + hourHandScore;
+  score /= (1+abs(nPend-1));
+  score /= (1+abs(nProperHands-3));
+  return score;
+}

@@ -61,6 +61,8 @@ int main() {
   int N = 6;
   int min = 10.;
   int periodSoFar = 0;
+
+  Traditionalist f;
   
   for (int i = 0 ; i < 10000 ; i ++) {
     Clock c(N);
@@ -76,18 +78,23 @@ int main() {
     if (countLong >= 1) {
       cout << "long period clock!" << endl << endl;
       c.display();
-      cout << endl;
+      cout << f.eval(&c) << endl << endl;
     }
     if (p.size() > periodSoFar) {
       cout << "Record number of period clock!" << endl << endl;
       c.display();
-      cout << endl;
+      cout << f.eval(&c) << endl << endl;
       periodSoFar = p.size();
     }
     if (hasHand) {
       cout << "clock with hand!" << endl << endl;
       c.display();
-      cout << endl;
+      cout << f.eval(&c) << endl << endl;
+    }
+    if (f.eval(&c)>0.5) {
+      cout << "high eval clock!" << endl << endl;
+      c.display();
+      cout << f.eval(&c) << endl << endl;
     }
   }
 

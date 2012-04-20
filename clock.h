@@ -75,6 +75,7 @@ namespace EvolvingClocks {
   public:
     unsigned int maxConnectionsOfType(interfaceType iType);
     ~Hand(){};
+    Hand(float l) { length_ = l; id_ = rand(); }
     Hand(float l, idType id) {  length_ = l; id_ = id; }
     Hand();
     float period() { return 2*3.14159*sqrt(length_/9.8); } 
@@ -92,6 +93,7 @@ namespace EvolvingClocks {
     unsigned int maxConnectionsOfType(interfaceType iType);
     //    Gear(float r, int t) { radius_ = r; teeth_ = t; }
     Gear(int t,idType id) { teeth_ = t; id_ = id; }
+    Gear(int t) { teeth_ = t; id_ = rand(); }
     Gear();
     int nTeeth() { return teeth_; }
     string description();
@@ -123,6 +125,29 @@ namespace EvolvingClocks {
     Component* randomFreeComponent();
     void display ();
   };
+
+  class Observer {
+  public:
+    Observer(){};
+    float eval(Clock*){return 1;}
+  };
+
+  class Frequentist : public Observer {
+  private:
+    float desired_;
+  public:
+    Frequentist(float p){desired_ = p;}
+    float eval(Clock*);
+  };
+
+  class Traditionalist : public Observer {
+  public:
+    Traditionalist(){}
+    float eval(Clock*);
+  };
+
+
+
 
 }
 
