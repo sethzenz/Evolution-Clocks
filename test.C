@@ -10,7 +10,7 @@ using namespace EvolvingClocks;
 int main() {
   srand(time(NULL)); rand(); rand();
 
-  cout << "Hello" << endl;
+  cout << "Hello, Nathan was here!" << endl;
   Component x;
   Gear y;
   y.link(&y,gearBottom,gearTop);
