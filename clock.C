@@ -546,16 +546,16 @@ float Traditionalist::eval(Clock& c) {
   for (deque<PeriodInfo>::iterator it = p.begin() ; it != p.end() ; it++) {
     if (it->type() == pendulum) {
       nPend++;
-      float newPendScore = 1/(0.001+fracDiff(it->period(),1.));
+      float newPendScore = 1/(precision_+fracDiff(it->period(),1.));
       if (newPendScore > pendScore) pendScore = newPendScore;
     }
     if (it->type() == gearWithHand) {
       nProperHands++;
-      float newHourHandScore = 1/(0.001+fracDiff(it->period(),12*3600.));
+      float newHourHandScore = 1/(precision_+fracDiff(it->period(),12*3600.));
       if (newHourHandScore > hourHandScore) hourHandScore = newHourHandScore;
-      float newMinuteHandScore = 1/(0.001+fracDiff(it->period(),3600.));
+      float newMinuteHandScore = 1/(precision_+fracDiff(it->period(),3600.));
       if (newMinuteHandScore > minuteHandScore) minuteHandScore = newMinuteHandScore;
-      float newSecondHandScore = 1/(0.001+fracDiff(it->period(),60.));
+      float newSecondHandScore = 1/(precision_+fracDiff(it->period(),60.));
       if (newSecondHandScore > secondHandScore) secondHandScore = newSecondHandScore;
     }
   }

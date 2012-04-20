@@ -64,7 +64,7 @@ int main() {
   int periodSoFar = 0;
   float evalSoFar = 0.;
 
-  Traditionalist o(0.001);
+  Traditionalist o(1.);
   
   for (int i = 0 ; i < nc ; i ++) {
     Clock c(N);
