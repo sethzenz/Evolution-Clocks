@@ -55,9 +55,15 @@ bool Component::isOK(bool verbose) {
 
 void Component::link(Component* other,interfaceType myInterface, interfaceType otherInterface) {
   Connection outConnection(other,myInterface,otherInterface);
-  Connection inConnection(this,otherInterface,myInterface);
   connections_.push_back(outConnection);
+  Connection inConnection(this,otherInterface,myInterface);
   other->connections_.push_back(inConnection);
+}
+
+void Component::linkOneWay(Component* other,interfaceType myInterface, interfaceType otherInterface)
+{
+  Connection outConnection(other,myInterface,otherInterface);
+  connections_.push_back(outConnection);
 }
 
 void Component::delink(Component* other) {
@@ -166,7 +172,7 @@ Component* Clock::randomFreeComponent() {
   return theList[(rand()%theList.size())];
 }
 
-void Clock::AddRandom() {
+void Clock::addRandom() {
   bool done = false;
   while (!done) {
     bool isHand = (rand() < (0.5*RAND_MAX));
@@ -195,9 +201,56 @@ void Clock::AddRandom() {
   }
 }
 
+Clock::Clock(Clock *old) {
+  for (deque<Hand>::iterator it =old->hands_.begin() ; it != old->hands_.end() ; it++) {
+    hands_.push_back(Hand(*it));
+  }
+  for (deque<Gear>::iterator it =old->gears_.begin() ; it != old->gears_.end() ; it++) {
+    gears_.push_back(Gear(*it));
+  }
+  for (int hi = 0 ; hi < old->hands_.size() ; hi++) {
+    for (deque<Connection>::iterator cit = old->hands_[hi].connections_.begin() ; cit != old->hands_[hi].connections_.end() ; cit++) {
+      if (cit->otherInterface() == clockBase) { // link to baseplate
+	hands_[hi].link(&backplate_,cit->myInterface(),cit->otherInterface());
+	// Gear links to hands will be handled in the gear loop
+      }
+    }
+  } // hand links
+
+  for (int gi =0 ; gi < old->gears_.size() ; gi++) {
+    for (deque<Connection>::iterator cit = old->gears_[gi].connections_.begin() ; cit != old->gears_[gi].connections_.end() ; cit++) {
+      if (cit->otherInterface() == clockBase) { // link to baseplate
+	gears_[gi].link(&backplate_,cit->myInterface(),cit->otherInterface());
+      }
+      if (cit->otherInterface() == handEnd) { // link to hand
+	for (int hi = 0 ; hi < old->hands_.size() ; hi++) {
+          if (cit->otherComponent()->identifier() == hands_[hi].identifier()) {
+            gears_[gi].link(&hands_[hi],cit->myInterface(),cit->otherInterface());
+          }
+        }
+      }
+      if (cit->otherInterface() == gearTop || cit->otherInterface() == gearEdge || cit->otherInterface() == gearBottom) {
+	for (int gi2 = 0 ;gi2 < old->gears_.size() ; gi2++) { // link to gear
+	  if (cit->otherComponent()->identifier() ==gears_[gi2].identifier()) {
+	    // N.B. easiest to do half the link now and half in the other gear's loop
+	    gears_[gi].linkOneWay(&gears_[gi2],cit->myInterface(),cit->otherInterface());
+	  }
+	}
+      } 
+    }
+  } // gearlinks
+
+  resetIdentifiers();
+// cout << " isOK()=" << isOK() << endl;
+// cout << "---------" << endl;
+//  display();
+//  cout << "---------" << endl;
+}
+
+
 Clock::Clock(int nRandom) {
   for (int i = 0 ; i < nRandom ; i++) {
-    AddRandom();
+    addRandom();
     /*
     bool isHand = (rand() < (0.5*RAND_MAX));
     Component *addTo = randomFreeComponent();
@@ -506,15 +559,15 @@ void Clock::display() {
   string periodTypeName[] = {"pendulum", "plainGear", "gearWithHand"};
 
   cout << "Displaying clock with " <<  nPieces() << " pieces" << endl;
+  cout << backplate_.description() << endl;
+  for (deque<Hand>::iterator it = hands_.begin() ; it != hands_.end() ; it++) cout << it->description() << endl;
+  for (deque<Gear>::iterator it = gears_.begin() ; it != gears_.end() ; it++) cout << it->description() << endl;
   cout << "Periods: ";
   deque<PeriodInfo> p = periods();
   for (deque<PeriodInfo>::iterator it = p.begin() ; it != p.end() ; it++) {
     cout << it->period() << " (" << periodTypeName[it->type()] << " " << it->componentId() << "), ";
   }
   cout << endl;
-  cout << backplate_.description() << endl;
-  for (deque<Hand>::iterator it = hands_.begin() ; it != hands_.end() ; it++) cout << it->description() << endl;
-  for (deque<Gear>::iterator it = gears_.begin() ; it != gears_.end() ; it++) cout << it->description() << endl;
 }
 
 float Frequentist::eval(Clock& c) {

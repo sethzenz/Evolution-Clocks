@@ -64,7 +64,7 @@ int main() {
   int periodSoFar = 0;
   float evalSoFar = 0.;
 
-  Traditionalist o(1.);
+  Traditionalist o(0.1);
   
   for (int i = 0 ; i < nc ; i ++) {
     Clock c(N);
@@ -114,7 +114,34 @@ int main() {
     cout << i << " periods of " << min << "+ secs: " << minutePeriodHist[i] << endl;
   }
 
+  cout << endl << endl << "Now starting mutation test..." << endl;
 
+  evalSoFar = 0.;
+  Clock *cc = new Clock(5);
+  for (int i = 0 ; i < 100 ; i++) {
+    //    cout << "Original check..." << endl;
+    //    cc->display();
+
+    Clock *newc = new Clock(cc);
+    newc->addRandom();
+    //    cout << "Clone check..." << endl;
+    //    newc->display();
+    //    cout << o.eval(*newc) << endl;
+
+    if (o.eval(*newc) >= o.eval(*cc)) {
+      cout << "Improved " << o.eval(*cc) << " to " << o.eval(*newc) << endl;
+      Clock *old = cc;
+      cc = newc;
+      delete old;
+    } else {
+      delete newc;
+    }
+  }
+
+  cout << endl;
+  cout << endl;
+  cc->display();
+  
   //  srand(time(NULL));
   //  cout << time(NULL) << " " << (rand() % 100) << endl;
 

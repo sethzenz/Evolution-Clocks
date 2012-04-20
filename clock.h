@@ -57,6 +57,7 @@ namespace EvolvingClocks {
     virtual ~Component(){} //otherwise dynamic casts don't work
     bool isOK(bool verbose=false);
     void link(Component*,interfaceType,interfaceType);
+    void linkOneWay(Component*,interfaceType,interfaceType);
     void delink(Component*);
     bool hasLinkToBase();
     bool hasLinkToBase(deque<idType>);
@@ -84,6 +85,7 @@ namespace EvolvingClocks {
     Hand();
     float period() { return 2*3.14159*sqrt(length_/9.8); } 
     string description();
+    Hand(const Hand& h){ length_ = h.length_ ; id_ = h.id_; }
   };
 
   class Gear : public Component {
@@ -101,6 +103,7 @@ namespace EvolvingClocks {
     Gear();
     int nTeeth() { return teeth_; }
     string description();
+    Gear(const Gear& g){ teeth_ = g.teeth_ ; id_ = g.id_; }
   };
 
   class Backplate : public Component {
@@ -128,7 +131,8 @@ namespace EvolvingClocks {
     deque<Component*> freeComponents();
     Component* randomFreeComponent();
     void display ();
-    void AddRandom();
+    void addRandom();
+    Clock(Clock*);
   };
 
   class Observer {
