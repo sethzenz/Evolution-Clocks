@@ -4,10 +4,6 @@
 using namespace EvolvingClocks;
 
 float Frequentist::eval(Clock& c) {
-
-  // Scores based on how close any period in the clock is to the desired period.
-  // Averages scores of all hands
-
   float score = 0.;
   deque<PeriodInfo> p = c.periods();
   for (deque<PeriodInfo>::iterator it = p.begin() ; it != p.end() ; it++) {
@@ -18,10 +14,6 @@ float Frequentist::eval(Clock& c) {
 }
 
 float Traditionalist::eval(Clock& c) {
-
-  // Wants exactly one pendulum with a 1s period, and three gears with hands with periods of 1 minute, 1 hour, and 12 hours                                                          
-  // Penalties for the wrong number of either pendulums or gears with hands.  Periods of handless gears ignored                                                                      
-
   deque<PeriodInfo> p = c.periods();
   float pendScore = 0.;
   float hourHandScore = 0.;
