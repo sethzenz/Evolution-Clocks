@@ -3,8 +3,12 @@
 #include <math.h>
 #include <stdlib.h>
 
+#ifndef _CLOCK_H_
+#define _CLOCK_H_
+
 #define TOLERANCE 0.000001
 #define fracDiff(a,b) (fabs(a-b)/b)
+
 
 using namespace std;
 
@@ -163,3 +167,4 @@ namespace EvolvingClocks {
 
 }
 
+#endif

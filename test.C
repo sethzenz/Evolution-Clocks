@@ -1,5 +1,6 @@
 #include <iostream>
 #include "clock.h"
+#include "breeder.h"
 #include <stdlib.h>
 #include <time.h>
 #include <map>
@@ -9,8 +10,8 @@ using namespace EvolvingClocks;
 
 int main() {
   srand(time(NULL)); rand(); rand();
+  cout << "Hello, Nathan was here!" << endl;
 
-  cout << "Hello" << endl;
   Component x;
   Gear y;
   y.link(&y,gearBottom,gearTop);
@@ -41,6 +42,13 @@ int main() {
   cout << "Clock isOK=" << c.isOK() << endl;
 
   cout << endl;
+
+  Breeder BabyMaker;
+
+  Clock d(4);
+  Clock m(5);
+  Clock child = BabyMaker.BreedPair(d,m);
+  child.display();
 
   deque<interfaceType> free = g2.freeConnectionTypes();
   for (deque<interfaceType>::iterator it = free.begin() ; it != free.end() ; it++) {
