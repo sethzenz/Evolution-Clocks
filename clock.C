@@ -7,6 +7,7 @@
 
 using namespace EvolvingClocks;
 
+
 Connection::Connection() {
   other_ = NULL;
   myInterface_ = empty;
@@ -18,6 +19,14 @@ Connection::Connection(Component* other,interfaceType myInterface, interfaceType
   myInterface_ = myInterface;
   otherInterface_ = otherInterface;
 }
+
+string Connection::description() {
+  string interfaceNames[] = { "empty", "clockBase", "handEnd", "gearEdge", "gearTop", "gearBottom", "INTERFACE_MAX" };
+  stringstream s;
+  s << otherComponent()->identifier() << " (" << interfaceNames[myInterface()] << "->" << interfaceNames[otherInterface()] << ")";
+  return s.str();
+}
+
 
 bool interfaceAllowed(interfaceType a,interfaceType b) {
   if (a == clockBase && (b == gearBottom || b == handEnd)) return true;
@@ -157,8 +166,39 @@ Component* Clock::randomFreeComponent() {
   return theList[(rand()%theList.size())];
 }
 
+void Clock::AddRandom() {
+  bool done = false;
+  while (!done) {
+    bool isHand = (rand() < (0.5*RAND_MAX));
+    Component *addTo = randomFreeComponent();
+    interfaceType fromInterface = addTo->randomFreeConnectionType();
+    interfaceType toInterface;
+    if (isHand) {
+      Hand dummyHand;
+      toInterface = dummyHand.randomFreeConnectionType();
+    } else {
+      Gear dummyGear;
+      toInterface = dummyGear.randomFreeConnectionType();
+    }
+    if (interfaceAllowed(fromInterface,toInterface)) {
+      done = true;
+      Component *newThing;
+      if (isHand) {
+	hands_.push_back(Hand());
+	newThing = &(hands_[hands_.size()-1]);
+      } else {
+	gears_.push_back(Gear());
+	newThing = &(gears_[gears_.size()-1]);
+      }
+      addTo->link(newThing,fromInterface,toInterface);
+    }
+  }
+}
+
 Clock::Clock(int nRandom) {
   for (int i = 0 ; i < nRandom ; i++) {
+    AddRandom();
+    /*
     bool isHand = (rand() < (0.5*RAND_MAX));
     Component *addTo = randomFreeComponent();
     interfaceType fromInterface = addTo->randomFreeConnectionType();
@@ -184,6 +224,7 @@ Clock::Clock(int nRandom) {
       newThing = &(gears_[gears_.size()-1]);
     }
     addTo->link(newThing,fromInterface,toInterface);
+    */
     //    cout << " Added item " << i << " and isOK=" << isOK() << " from=" << fromInterface << " to=" << toInterface << endl;
   }
   resetIdentifiers();
@@ -324,7 +365,7 @@ Gear::Gear() {
 }
 
 Hand::Hand() {
-  length_ = 0.01*((rand()%100)+10);
+  length_ = 0.0001*((rand()%10000)+1000);
 }
 
 string Gear::description() {
@@ -332,7 +373,8 @@ string Gear::description() {
   s << "gear id=" << id_ << " t=" << teeth_;
   s << " con:";
   for (deque<Connection>::iterator it = connections_.begin() ; it != connections_.end() ; it++) {
-    s << " " << it->otherComponent()->identifier() << " (" << it->myInterface() << "->" << it->otherInterface() <<")" ;
+    //    s << " " << it->otherComponent()->identifier() << " (" << it->myInterface() << "->" << it->otherInterface() <<")" ;
+    s << " " << it->description();
   }
   return s.str();
 }
@@ -342,7 +384,7 @@ string Hand::description() {
   s << "hand id=" << id_ << " l=" << length_;
   s << " con:";
   for (deque<Connection>::iterator it = connections_.begin() ; it != connections_.end() ; it++) {
-    s << " " << it->otherComponent()->identifier() << " (" << it->myInterface() << "->" << it->otherInterface() <<")" ;
+    s << " " << it->description();
   }
   return s.str();
 }
@@ -361,7 +403,7 @@ deque<PeriodInfo> Clock::periods(bool verbose) {
 	if (cit->otherInterface() == gearTop) break;
       }
       if (cit != it->connections_.end() && !cit->otherComponent()->hasLinkToBaseExcluding(it->identifier())) { 
-	result.push_back(PeriodInfo(it->period(),pendulum));
+	result.push_back(PeriodInfo(it->period(),pendulum,it->identifier()));
       }
     }
   }
@@ -428,7 +470,7 @@ deque<PeriodInfo> Clock::periods(bool verbose) {
 	  changed = true;
 	  if (verbose) cout << " ... done.";
 	}
-	if (gearNumbers[it->identifier()] > 0. && newVal > 0. && fabs((newVal-gearNumbers[it->identifier()])/newVal) > TOLERANCE) {
+	if (gearNumbers[it->identifier()] > 0. && newVal > 0. && fracDiff(gearNumbers[it->identifier()],newVal) > TOLERANCE) {
 	  gearNumbers[it->identifier()] = 0.;
 	    changed = true;
 	    if (verbose) cout << " ... conflict, set to 0.";
@@ -453,7 +495,7 @@ deque<PeriodInfo> Clock::periods(bool verbose) {
       }
     }
     if (gearNumbers[it->identifier()] > 0.) {
-      result.push_back(PeriodInfo(gearNumbers[it->identifier()],theType));
+      result.push_back(PeriodInfo(gearNumbers[it->identifier()],theType,it->identifier()));
     }
   }
    if (verbose) cout << endl;
@@ -461,11 +503,13 @@ deque<PeriodInfo> Clock::periods(bool verbose) {
 }
 
 void Clock::display() {
+  string periodTypeName[] = {"pendulum", "plainGear", "gearWithHand"};
+
   cout << "Displaying clock with " <<  nPieces() << " pieces" << endl;
   cout << "Periods: ";
   deque<PeriodInfo> p = periods();
   for (deque<PeriodInfo>::iterator it = p.begin() ; it != p.end() ; it++) {
-    cout << it->period() << " (" << it->type() << "), ";
+    cout << it->period() << " (" << periodTypeName[it->type()] << " " << it->componentId() << "), ";
   }
   cout << endl;
   cout << backplate_.description() << endl;
@@ -473,18 +517,26 @@ void Clock::display() {
   for (deque<Gear>::iterator it = gears_.begin() ; it != gears_.end() ; it++) cout << it->description() << endl;
 }
 
-float Frequentist::eval(Clock* c) {
+float Frequentist::eval(Clock& c) {
+
+  // Scores based on how close any period in the clock is to the desired period.
+  // Averages scores of all hands
+
   float score = 0.;
-  deque<PeriodInfo> p = c->periods();
+  deque<PeriodInfo> p = c.periods();
   for (deque<PeriodInfo>::iterator it = p.begin() ; it != p.end() ; it++) {
-    score += it->period()/(it->period() + fabs(it->period()-desired_));
+    score += 1/(precision_+fracDiff(it->period(),desired_));
   }
   score /= p.size();
   return score;
 }
 
-float Traditionalist::eval(Clock *c) {
-  deque<PeriodInfo> p = c->periods();
+float Traditionalist::eval(Clock& c) {
+
+  // Wants exactly one pendulum with a 1s period, and three gears with hands with periods of 1 minute, 1 hour, and 12 hours
+  // Penalties for the wrong number of either pendulums or gears with hands.  Periods of handless gears ignored
+
+  deque<PeriodInfo> p = c.periods();
   float pendScore = 0.;
   float hourHandScore = 0.;
   float secondHandScore = 0.;
@@ -494,16 +546,16 @@ float Traditionalist::eval(Clock *c) {
   for (deque<PeriodInfo>::iterator it = p.begin() ; it != p.end() ; it++) {
     if (it->type() == pendulum) {
       nPend++;
-      float newPendScore = it->period()/(it->period() + fabs(it->period()-1.));
+      float newPendScore = 1/(0.001+fracDiff(it->period(),1.));
       if (newPendScore > pendScore) pendScore = newPendScore;
     }
     if (it->type() == gearWithHand) {
       nProperHands++;
-      float newHourHandScore = it->period()/(it->period() + fabs(it->period()-86400.));
+      float newHourHandScore = 1/(0.001+fracDiff(it->period(),12*3600.));
       if (newHourHandScore > hourHandScore) hourHandScore = newHourHandScore;
-      float newMinuteHandScore = it->period()/(it->period() + fabs(it->period()-3600.));
+      float newMinuteHandScore = 1/(0.001+fracDiff(it->period(),3600.));
       if (newMinuteHandScore > minuteHandScore) minuteHandScore = newMinuteHandScore;
-      float newSecondHandScore = it->period()/(it->period() + fabs(it->period()-60.));
+      float newSecondHandScore = 1/(0.001+fracDiff(it->period(),60.));
       if (newSecondHandScore > secondHandScore) secondHandScore = newSecondHandScore;
     }
   }

@@ -58,13 +58,15 @@ int main() {
   map<int,int> minutePeriodHist;
   for (int i = 0 ; i < 10 ; i++) minutePeriodHist[i] = 0;
 
-  int N = 6;
+  int N = 15;
+  int nc = 10000;
   int min = 10.;
   int periodSoFar = 0;
+  float evalSoFar = 0.;
 
-  Traditionalist f;
+  Traditionalist o(0.001);
   
-  for (int i = 0 ; i < 10000 ; i ++) {
+  for (int i = 0 ; i < nc ; i ++) {
     Clock c(N);
     deque<PeriodInfo> p = c.periods();
     periodHist[p.size()] += 1;
@@ -75,26 +77,29 @@ int main() {
       if (it->type() == gearWithHand) hasHand = true;
     }
     minutePeriodHist[countLong] += 1;
+    /*
     if (countLong >= 1) {
       cout << "long period clock!" << endl << endl;
       c.display();
-      cout << f.eval(&c) << endl << endl;
+      cout << o.eval(c) << endl << endl;
     }
     if (p.size() > periodSoFar) {
       cout << "Record number of period clock!" << endl << endl;
       c.display();
-      cout << f.eval(&c) << endl << endl;
+      cout << o.eval(c) << endl << endl;
       periodSoFar = p.size();
     }
     if (hasHand) {
       cout << "clock with hand!" << endl << endl;
       c.display();
-      cout << f.eval(&c) << endl << endl;
+      cout << o.eval(c) << endl << endl;
     }
-    if (f.eval(&c)>0.5) {
-      cout << "high eval clock!" << endl << endl;
+    */
+    if (o.eval(c)>evalSoFar) {
+      cout << "high eval clock! " << i << "/" << nc << endl << endl;
       c.display();
-      cout << f.eval(&c) << endl << endl;
+      cout << o.eval(c) << endl << endl;
+      evalSoFar = o.eval(c);
     }
   }
 

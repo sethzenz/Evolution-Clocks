@@ -3,7 +3,8 @@
 #include <math.h>
 #include <stdlib.h>
 
-#define TOLERANCE 0.01
+#define TOLERANCE 0.000001
+#define fracDiff(a,b) (fabs(a-b)/b)
 
 using namespace std;
 
@@ -20,10 +21,12 @@ namespace EvolvingClocks {
   private:
     float period_;
     periodType type_;
+    idType id_; // Of component with this period
   public:
-    PeriodInfo(float p, periodType t){ period_ = p; type_ = t; }
+    PeriodInfo(float p, periodType t, idType id){ period_ = p; type_ = t; id_ = id; }
     float period(){ return period_; }
     periodType type(){return type_; }
+    idType componentId() { return id_; }
   };
 
   class Component;
@@ -40,6 +43,7 @@ namespace EvolvingClocks {
     interfaceType myInterface() {return myInterface_;}
     interfaceType otherInterface() {return otherInterface_;}
     Component* otherComponent() {return other_;}
+    string description();
   };
 
   class Component {
@@ -124,26 +128,30 @@ namespace EvolvingClocks {
     deque<Component*> freeComponents();
     Component* randomFreeComponent();
     void display ();
+    void AddRandom();
   };
 
   class Observer {
   public:
     Observer(){};
-    float eval(Clock*){return 1;}
+    float eval(Clock&){return 1;}
   };
 
   class Frequentist : public Observer {
   private:
-    float desired_;
+    float desired_; // desired period
+    float precision_; // should be positive and small. the closer it is to 0, the greater the reward for getting 1 period exactly right
   public:
-    Frequentist(float p){desired_ = p;}
-    float eval(Clock*);
+    Frequentist(float d, float p=TOLERANCE){desired_ = d; precision_ = p;}
+    float eval(Clock&);
   };
 
   class Traditionalist : public Observer {
+  private:
+    float precision_;
   public:
-    Traditionalist(){}
-    float eval(Clock*);
+    Traditionalist(float p=TOLERANCE){ precision_ = p;}
+    float eval(Clock&);
   };
 
 
