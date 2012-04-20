@@ -1,6 +1,7 @@
 #include <iostream>
 #include "clock.h"
 #include "breeder.h"
+#include "observer.h"
 #include <stdlib.h>
 #include <time.h>
 #include <map>
