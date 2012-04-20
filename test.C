@@ -1,5 +1,6 @@
 #include <iostream>
 #include "clock.h"
+#include "breeder.h"
 #include <stdlib.h>
 #include <time.h>
 #include <map>
@@ -42,6 +43,13 @@ int main() {
 
    cout << endl;
 
+   Breeder BabyMaker;
+
+   Clock d(4);
+   Clock m(5);
+   Clock child = BabyMaker.BreedPair(d,m);
+   child.display();
+
    deque<interfaceType> free = g2.freeConnectionTypes();
    for (deque<interfaceType>::iterator it = free.begin() ; it != free.end() ; it++) {
       cout << "Available connection type " << *it << endl;
@@ -58,8 +66,8 @@ int main() {
    map<int,int> minutePeriodHist;
    for (int i = 0 ; i < 10 ; i++) minutePeriodHist[i] = 0;
 
-   int N = 15;
-   int nc = 100000;
+   int N = 3;
+   int nc = 1000000;
    int min = 10.;
    int periodSoFar = 0;
    float evalSoFar = 0.;
